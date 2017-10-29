@@ -32,6 +32,18 @@ public protocol WebSocketDelegate: class {
     func websocketDidDisconnect(socket: WebSocket, error: NSError?)
     func websocketDidReceiveMessage(socket: WebSocket, text: String)
     func websocketDidReceiveData(socket: WebSocket, data: Data)
+    
+    func websocketDidCompressOutgoingData(uncompressedSize: Int, compressedSize: Int)
+    func websocketDidDecompressIncomingData(uncompressedSize: Int, compressedSize: Int)
+    func websocketDidNotDecompressIncomingData(size: Int)
+    func websocketDidNotCompressOutgoingData(size: Int)
+}
+
+public extension WebSocketDelegate {
+    func websocketDidCompressOutgoingData(uncompressedSize: Int, compressedSize: Int) {}
+    func websocketDidDecompressIncomingData(uncompressedSize: Int, compressedSize: Int) {}
+    func websocketDidNotDecompressIncomingData(size: Int) {}
+    func websocketDidNotCompressOutgoingData(size: Int) {}
 }
 
 public protocol WebSocketPongDelegate: class {
@@ -839,10 +851,12 @@ open class WebSocket : NSObject, StreamDelegate {
             let data: Data
             if compressionState.messageNeedsDecompression, let decompressor = compressionState.decompressor {
                 do {
+                    let uncompressedSize = Int(len)
                     data = try decompressor.decompress(bytes: baseAddress+offset, count: Int(len), finish: isFin > 0)
                     if isFin > 0 && compressionState.serverNoContextTakeover{
                         try decompressor.reset()
                     }
+                    self.delegate?.websocketDidDecompressIncomingData(uncompressedSize: uncompressedSize, compressedSize: data.count)
                 } catch {
                     let closeReason = "Decompression failed: \(error)"
                     let closeCode = CloseCode.encoding.rawValue
@@ -851,6 +865,7 @@ open class WebSocket : NSObject, StreamDelegate {
                     return emptyBuffer
                 }
             } else {
+                self.delegate?.websocketDidNotDecompressIncomingData(size: Int(len))
                 data = Data(bytes: baseAddress+offset, count: Int(len))
             }
 
@@ -1010,6 +1025,7 @@ open class WebSocket : NSObject, StreamDelegate {
             var offset = 2
             var firstByte:UInt8 = s.FinMask | code.rawValue
             var data = data
+            let uncompressedSize = data.count
             if [.textFrame, .binaryFrame].contains(code), let compressor = s.compressionState.compressor {
                 do {
                     data = try compressor.compress(data)
@@ -1017,9 +1033,12 @@ open class WebSocket : NSObject, StreamDelegate {
                         try compressor.reset()
                     }
                     firstByte |= s.RSV1Mask
+                    s.delegate?.websocketDidCompressOutgoingData(uncompressedSize: uncompressedSize, compressedSize: data.count)
                 } catch {
                     // TODO: report error?  We can just send the uncompressed frame.
                 }
+            } else {
+                s.delegate?.websocketDidNotCompressOutgoingData(size: data.count)
             }
             let dataLength = data.count
             let frame = NSMutableData(capacity: dataLength + s.MaxFrameSize)
