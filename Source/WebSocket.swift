@@ -851,12 +851,12 @@ open class WebSocket : NSObject, StreamDelegate {
             let data: Data
             if compressionState.messageNeedsDecompression, let decompressor = compressionState.decompressor {
                 do {
-                    let uncompressedSize = Int(len)
+                    let compressedSize = Int(len)
                     data = try decompressor.decompress(bytes: baseAddress+offset, count: Int(len), finish: isFin > 0)
                     if isFin > 0 && compressionState.serverNoContextTakeover{
                         try decompressor.reset()
                     }
-                    self.delegate?.websocketDidDecompressIncomingData(uncompressedSize: uncompressedSize, compressedSize: data.count)
+                    self.delegate?.websocketDidDecompressIncomingData(uncompressedSize: data.count, compressedSize: compressedSize)
                 } catch {
                     let closeReason = "Decompression failed: \(error)"
                     let closeCode = CloseCode.encoding.rawValue
