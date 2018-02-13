@@ -1053,6 +1053,11 @@ open class WebSocket : NSObject, StreamDelegate, WebSocketClient, WSStreamDelega
                     if isFin > 0 && compressionState.serverNoContextTakeover {
                         try decompressor.reset()
                     }
+                    
+                    //Bringg additions
+                    let notificationName = NSNotification.Name("BBWebsocketDidDecompressIncomingData")
+                    let notificationObject: [String: Int] = ["uncompressedSize": data.count, "compressedSize": Int(len)]
+                    NotificationCenter.default.post(name: notificationName, object:notificationObject)
                 } catch {
                     let closeReason = "Decompression failed: \(error)"
                     let closeCode = CloseCode.encoding.rawValue
@@ -1062,6 +1067,11 @@ open class WebSocket : NSObject, StreamDelegate, WebSocketClient, WSStreamDelega
                 }
             } else {
                 data = Data(bytes: baseAddress+offset, count: Int(len))
+                
+                //Bringg additions
+                let notificationName = NSNotification.Name("BBWebsocketDidNotDecompressIncomingData")
+                let notificationObject: [String: Int] = ["dataSize": data.count]
+                NotificationCenter.default.post(name: notificationName, object:notificationObject)
             }
 
             if receivedOpcode == .connectionClose {
@@ -1212,14 +1222,27 @@ open class WebSocket : NSObject, StreamDelegate, WebSocketClient, WSStreamDelega
             var data = data
             if [.textFrame, .binaryFrame].contains(code), let compressor = s.compressionState.compressor {
                 do {
+                    //Bringg additions
+                    let uncompressedSize = data.count
+                        
                     data = try compressor.compress(data)
                     if s.compressionState.clientNoContextTakeover {
                         try compressor.reset()
                     }
                     firstByte |= s.RSV1Mask
+                    
+                    //Bringg additions
+                    let notificationName = NSNotification.Name("BBWebsocketDidCompressOutgoingData")
+                    let notificationObject: [String: Int] = ["uncompressedSize": uncompressedSize, "compressedSize": data.count]
+                    NotificationCenter.default.post(name: notificationName, object:notificationObject)
                 } catch {
                     // TODO: report error?  We can just send the uncompressed frame.
                 }
+            } else {
+                //Bringg additions
+                let notificationName = NSNotification.Name("BBWebsocketDidNotCompressOutgoingData")
+                let notificationObject: [String: Int] = ["dataSize": data.count]
+                NotificationCenter.default.post(name: notificationName, object:notificationObject)
             }
             let dataLength = data.count
             let frame = NSMutableData(capacity: dataLength + s.MaxFrameSize)

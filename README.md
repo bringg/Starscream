@@ -4,6 +4,29 @@ Starscream is a conforming WebSocket ([RFC 6455](http://tools.ietf.org/html/rfc6
 
 Its Objective-C counterpart can be found here: [Jetfire](https://github.com/acmacalister/jetfire)
 
+## Bringg additions
+To support logging of data transfer size before and after compression, we use notification center to notify on data sizes.
+
+```swift
+notification key: BBWebsocketDidDecompressIncomingData
+object type:
+["uncompressedSize": Int,
+"compressedSize": Int]
+
+notification key: BBWebsocketDidNotDecompressIncomingData
+object type:
+["dataSize": Int]
+
+notification key: BBWebsocketDidCompressOutgoingData
+object type:
+["uncompressedSize": Int,
+compressedSize": Int]
+
+notification key: BBWebsocketDidNotCompressOutgoingData
+object type:
+["dataSize": Int]
+```
+
 ## Features
 
 - Conforms to all of the base [Autobahn test suite](http://autobahn.ws/testsuite/).
