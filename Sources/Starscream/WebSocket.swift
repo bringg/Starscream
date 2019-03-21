@@ -1241,7 +1241,7 @@ open class WebSocket : NSObject, StreamDelegate, WebSocketClient, WSStreamDelega
                     if self.compressionState.clientNoContextTakeover {
                         try compressor.reset()
                     }
-                    firstByte |= s.RSV1Mask
+                    firstByte |= self.RSV1Mask
                     
                     //Bringg additions
                     let notificationName = NSNotification.Name("BBWebsocketDidCompressOutgoingData")
